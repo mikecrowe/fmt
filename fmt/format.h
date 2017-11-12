@@ -1345,15 +1345,6 @@ class MakeValue : public Arg {
   typedef typename Formatter::Char Char;
 
  private:
-  // The following two methods are private to disallow formatting of
-  // arbitrary pointers. If you want to output a pointer cast it to
-  // "void *" or "const void *". In particular, this forbids formatting
-  // of "[const] volatile char *" which is printed as bool by iostreams.
-  // Do not implement!
-  template <typename T>
-  MakeValue(const T *value);
-  template <typename T>
-  MakeValue(T *value);
 
   // The following methods are private to disallow formatting of wide
   // characters and strings into narrow strings as in
@@ -1517,6 +1508,36 @@ class MakeValue : public Arg {
   static uint64_t type(const NamedArg<Char_> &) { return Arg::NAMED_ARG; }
   template <typename Char_, typename T>
   static uint64_t type(const NamedArgWithType<Char_, T> &) { return Arg::NAMED_ARG; }
+
+  // Support formatting arbitrary pointers with const and volatile
+  // modifiers.
+  template <typename T>
+  MakeValue(T *value) {
+    pointer = reinterpret_cast<const void *>(value);
+  }
+  template <typename T>
+  static uint64_t type(T *) { return Arg::POINTER; }
+
+  template <typename T>
+  MakeValue(const T *value) {
+    pointer = reinterpret_cast<const void *>(value);
+  }
+  template <typename T>
+  static uint64_t type(const T *) { return Arg::POINTER; }
+
+  template <typename T>
+  MakeValue(volatile T *value) {
+    pointer = reinterpret_cast<const void *>(const_cast<T *>(value));
+  }
+  template <typename T>
+  static uint64_t type(volatile T *) { return Arg::POINTER; }
+
+  template <typename T>
+  MakeValue(const volatile T *value) {
+    pointer = reinterpret_cast<const void *>(const_cast<const T *>(value));
+  }
+  template <typename T>
+  static uint64_t type(const volatile T *) { return Arg::POINTER; }
 };
 
 template <typename Formatter>

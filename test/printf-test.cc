@@ -445,11 +445,34 @@ TEST(PrintfTest, String) {
   // TODO: wide string
 }
 
+struct ArbitraryStruct
+{
+};
+
+int a_function(int a)
+{
+}
+
 TEST(PrintfTest, Pointer) {
   int n;
   void *p = &n;
+  int *q = &n;
+  const int *cq = &n;
+  const void *cp = &n;
+  volatile int *vq = &n;
+  volatile void *vp = &n;
   EXPECT_PRINTF(fmt::format("{}", p), "%p", p);
+  EXPECT_PRINTF(fmt::format("{}", p), "%p", q);
+  EXPECT_PRINTF(fmt::format("{}", p), "%p", cp);
+  EXPECT_PRINTF(fmt::format("{}", p), "%p", cq);
+  EXPECT_PRINTF(fmt::format("{}", p), "%p", vp);
+  EXPECT_PRINTF(fmt::format("{}", p), "%p", vq);
   EXPECT_PRINTF(fmt::format("{}", p), "%s", p);
+
+  ArbitraryStruct foo;
+  EXPECT_PRINTF(fmt::format("{}", (void *)(&foo)), "%p", &foo);
+  EXPECT_PRINTF(fmt::format("{}", (void *)(&a_function)), "%p", &a_function);
+
   p = 0;
   EXPECT_PRINTF("(nil)", "%p", p);
   EXPECT_PRINTF("     (nil)", "%10p", p);
