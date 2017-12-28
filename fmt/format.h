@@ -1370,6 +1370,16 @@ void format_arg(Formatter&, ...) {
                     "an overload of format_arg.");
 }
 
+// Formatters can specialize these in order to enable support for
+// arbitrary pointer arguments.
+template <typename Formatter, typename T>
+struct disallow_arbitrary_pointer_args {
+  typedef int type;
+};
+template <typename Formatter, typename T>
+struct allow_arbitrary_pointer_args {
+};
+
 // Makes an Arg object from any type.
 template <typename Formatter>
 class MakeValue : public Arg {
@@ -1378,14 +1388,16 @@ class MakeValue : public Arg {
 
  private:
   // The following two methods are private to disallow formatting of
-  // arbitrary pointers. If you want to output a pointer cast it to
-  // "void *" or "const void *". In particular, this forbids formatting
-  // of "[const] volatile char *" which is printed as bool by iostreams.
-  // Do not implement!
+  // arbitrary pointers by default. If you want to output a pointer
+  // cast it to "void *" or "const void *". In particular, this
+  // forbids formatting of "[const] volatile char *" which is printed
+  // as bool by iostreams. Do not implement! If a formatter wishes to
+  // support this then it can specialize
+  // disallow_arbitrary_pointer_args and allow_arbitrary_pointer_args.
   template <typename T>
-  MakeValue(const T *value);
+  MakeValue(T *value, typename disallow_arbitrary_pointer_args<Formatter, T>::type dummy = 0);
   template <typename T>
-  MakeValue(T *value);
+  MakeValue(const T *value, typename disallow_arbitrary_pointer_args<Formatter, T>::type dummy = 0);
 
   // The following methods are private to disallow formatting of wide
   // characters and strings into narrow strings as in
@@ -1558,6 +1570,36 @@ class MakeValue : public Arg {
   static uint64_t type(const NamedArg<Char_> &) { return Arg::NAMED_ARG; }
   template <typename Char_, typename T>
   static uint64_t type(const NamedArgWithType<Char_, T> &) { return Arg::NAMED_ARG; }
+
+  // Support formatting arbitrary pointers with const and volatile
+  // modifiers.
+  template <typename T>
+  MakeValue(T *value, typename allow_arbitrary_pointer_args<Formatter, T>::type = 0) {
+    pointer = reinterpret_cast<const void *>(value);
+  }
+  template <typename T>
+  static uint64_t type(T * /*, typename allow_arbitrary_pointer_args<Formatter>::type = 0*/) { return Arg::POINTER; }
+
+  template <typename T>
+  MakeValue(const T *value, typename allow_arbitrary_pointer_args<Formatter, T>::type = 0) {
+    pointer = reinterpret_cast<const void *>(value);
+  }
+  template <typename T>
+  static uint64_t type(const T * /*, typename allow_arbitrary_pointer_args<Formatter>::type = 0*/) { return Arg::POINTER; }
+
+  template <typename T>
+  MakeValue(volatile T *value, typename allow_arbitrary_pointer_args<Formatter, T>::type = 0) {
+    pointer = reinterpret_cast<const void *>(const_cast<T *>(value));
+  }
+  template <typename T>
+  static uint64_t type(volatile T * /*, typename allow_arbitrary_pointer_args<Formatter>::type = 0*/) { return Arg::POINTER; }
+
+  template <typename T>
+  MakeValue(const volatile T *value, typename allow_arbitrary_pointer_args<Formatter, T>::type = 0) {
+    pointer = reinterpret_cast<const void *>(const_cast<const T *>(value));
+  }
+  template <typename T>
+  static uint64_t type(const volatile T * /*, typename allow_arbitrary_pointer_args<Formatter>::type = 0*/) { return Arg::POINTER; }
 };
 
 template <typename Formatter>

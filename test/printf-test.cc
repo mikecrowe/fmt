@@ -445,11 +445,39 @@ TEST(PrintfTest, String) {
   // TODO: wide string
 }
 
+struct ArbitraryStruct
+{
+};
+
+int a_function(int a)
+{
+}
+
 TEST(PrintfTest, Pointer) {
   int n;
   void *p = &n;
-  EXPECT_PRINTF(fmt::format("{}", p), "%p", p);
-  EXPECT_PRINTF(fmt::format("{}", p), "%s", p);
+  int *q = &n;
+  const int *cq = &n;
+  const void *cp = &n;
+  volatile int *vq = &n;
+  volatile void *vp = &n;
+
+  // This line does not compile. For reasons unknown, it wants to use
+  // MakeValue<BasicFormatter<char>> still, even though we should be
+  // using PrintfFormatter.
+  auto sss = fmt::sprintf("%p", q);
+  EXPECT_PRINTF(fmt::format("{}", static_cast<void *>(p)), "%p", p);
+  EXPECT_PRINTF(fmt::format("{}", static_cast<void *>(p)), "%p", q);
+  EXPECT_PRINTF(fmt::format("{}", static_cast<void *>(p)), "%p", cp);
+  EXPECT_PRINTF(fmt::format("{}", static_cast<void *>(p)), "%p", cq);
+  EXPECT_PRINTF(fmt::format("{}", static_cast<void *>(p)), "%p", vp);
+  EXPECT_PRINTF(fmt::format("{}", static_cast<void *>(p)), "%p", vq);
+  EXPECT_PRINTF(fmt::format("{}", static_cast<void *>(p)), "%s", p);
+
+  ArbitraryStruct foo;
+  EXPECT_PRINTF(fmt::format("{}", (void *)(&foo)), "%p", &foo);
+  EXPECT_PRINTF(fmt::format("{}", (void *)(&a_function)), "%p", &a_function);
+
   p = 0;
   EXPECT_PRINTF("(nil)", "%p", p);
   EXPECT_PRINTF("     (nil)", "%10p", p);

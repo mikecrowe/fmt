@@ -339,6 +339,18 @@ class PrintfFormatter : private internal::FormatterBase {
   void format(BasicCStringRef<Char> format_str);
 };
 
+/** For compatibility with printf, PrintfFormatter does support
+ * pointers to arbitrary types. */
+namespace internal {
+template <typename Char, typename AF, typename T>
+struct disallow_arbitrary_pointer_args<PrintfFormatter<Char, AF>, T> {
+};
+template <typename Char, typename AF, typename T>
+struct allow_arbitrary_pointer_args<PrintfFormatter<Char, AF>, T> {
+  typedef int type;
+};
+}
+
 template <typename Char, typename AF>
 void PrintfFormatter<Char, AF>::parse_flags(FormatSpec &spec, const Char *&s) {
   for (;;) {
