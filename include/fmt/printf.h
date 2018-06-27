@@ -10,6 +10,7 @@
 
 #include <algorithm>  // std::fill_n
 #include <limits>     // std::numeric_limits
+#include <cerrno>
 
 #include "ostream.h"
 
@@ -195,6 +196,18 @@ class printf_width_handler: public function<unsigned> {
       operator()(T) {
     FMT_THROW(format_error("width is not integer"));
     return 0;
+  }
+};
+
+class errno_preserver {
+  const int saved_errno_;
+public:
+  errno_preserver() : saved_errno_(errno) {}
+  ~errno_preserver() {
+    errno = saved_errno_;
+  }
+  int get() const {
+    return saved_errno_;
   }
 };
 }  // namespace internal
@@ -446,6 +459,39 @@ unsigned basic_printf_context<OutputIt, Char, AF>::parse_header(
   return arg_index;
 }
 
+namespace internal {
+template <typename Char>
+basic_memory_buffer<Char> error_to_buffer();
+
+template <>
+memory_buffer error_to_buffer<char>()
+{
+  // Something in here is changing errno in the mingw build. We
+  // ought to preserve it anyway, even if an exception is thrown.
+  internal::errno_preserver errno_preserver;
+  memory_buffer error_buffer;
+  format_system_error(error_buffer, errno_preserver.get(), "");
+  return error_buffer;
+}
+
+template <>
+wmemory_buffer error_to_buffer<wchar_t>()
+{
+  // Something in here is changing errno in the mingw build. We
+  // ought to preserve it anyway, even if an exception is thrown.
+  internal::errno_preserver errno_preserver;
+  memory_buffer narrow_error_buffer;
+  format_system_error(narrow_error_buffer, errno_preserver.get(), "");
+
+  wmemory_buffer wide_error_buffer;
+  wide_error_buffer.resize(narrow_error_buffer.size()+1);
+  size_t size = mbstowcs(&wide_error_buffer[0], narrow_error_buffer.data(), wide_error_buffer.size());
+  wide_error_buffer.resize(size);
+
+  return wide_error_buffer;
+}
+}
+
 template <typename OutputIt, typename Char, typename AF>
 void basic_printf_context<OutputIt, Char, AF>::format() {
   auto &buffer = internal::get_container(this->out());
@@ -467,6 +513,13 @@ void basic_printf_context<OutputIt, Char, AF>::format() {
 
     // Parse argument index, flags and width.
     unsigned arg_index = parse_header(it, spec);
+
+    if (*it == 'm') {
+      auto const error = internal::error_to_buffer<Char>();
+      visit(AF(buffer, spec, *this), internal::make_arg<basic_printf_context<OutputIt, Char, AF>>(basic_string_view<Char>(error.data(), error.size())));
+      start = ++it;
+      continue;
+    }
 
     // Parse precision.
     if (*it == '.') {

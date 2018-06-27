@@ -37,6 +37,10 @@ std::wstring make_positional(fmt::wstring_view format) {
     << "format: " << format; \
   EXPECT_EQ(expected_output, fmt::sprintf(make_positional(format), arg))
 
+#define EXPECT_PRINTF_NO_ARG(expected_output, format) \
+  EXPECT_EQ(expected_output, fmt::sprintf(format)) \
+    << "format: " << format;
+
 TEST(PrintfTest, NoArgs) {
   EXPECT_EQ("test", fmt::sprintf("test"));
   EXPECT_EQ(L"test", fmt::sprintf(L"test"));
@@ -466,6 +470,18 @@ enum E { A = 42 };
 
 TEST(PrintfTest, Enum) {
   EXPECT_PRINTF("42", "%d", A);
+}
+
+TEST(PrintfTest, ErrorMessage) {
+  errno = ENOENT;
+
+  EXPECT_PRINTF_NO_ARG("No such file or directory", "%m");
+  EXPECT_PRINTF_NO_ARG("No such file or directory     ", "%-30m");
+  EXPECT_PRINTF_NO_ARG("     No such file or directory", "%30m");
+
+  EXPECT_PRINTF_NO_ARG(L"No such file or directory", L"%m");
+  EXPECT_PRINTF_NO_ARG(L"No such file or directory     ", L"%-30m");
+  EXPECT_PRINTF_NO_ARG(L"     No such file or directory", L"%30m");
 }
 
 #if FMT_USE_FILE_DESCRIPTORS

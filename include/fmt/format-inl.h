@@ -459,8 +459,10 @@ FMT_FUNC void format_system_error(
       int result = safe_strerror(error_code, system_message, buf.size());
       if (result == 0) {
         writer w(out);
-        w.write(message);
-        w.write(": ");
+	if (message.size()) {
+	    w.write(message);
+	    w.write(": ");
+	}
         w.write(system_message);
         return;
       }
