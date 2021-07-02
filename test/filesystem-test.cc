@@ -8,11 +8,8 @@
 #include "fmt/std.h"
 
 #include "gtest-extra.h"  // EXPECT_THROW_MSG
-//#include "util.h"         // get_locale
 
-//using fmt::runtime;
-
-//using testing::Contains;
+#if __cplusplus >= 201703L
 
 TEST(std_test, filesystem_path_empty) {
     std::filesystem::path path;
@@ -23,3 +20,5 @@ TEST(std_test, filesystem_path_simple) {
     std::filesystem::path path{"/etc/passwd"};
     EXPECT_EQ(fmt::format("{}", path), "/etc/passwd");
 }
+
+#endif

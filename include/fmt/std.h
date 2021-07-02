@@ -13,7 +13,9 @@
 //#include <ctime>
 //#include <locale>
 //#include <sstream>
+#if __cplusplus >= 201703L
 #include <filesystem>
+#endif
 
 #include "format.h"
 
@@ -22,8 +24,8 @@ FMT_MODULE_EXPORT_BEGIN
 
 // filesystem
 
-template <typename Char>
-struct formatter<std::filesystem::path, Char> {
+#if __cplusplus >= 201703L
+struct formatter<std::filesystem::path, char> {
     constexpr auto parse(format_parse_context& ctx) -> decltype(ctx.begin()) {
         // No format options are currently supported.
         auto it = ctx.begin(), end = ctx.end();
@@ -37,11 +39,17 @@ struct formatter<std::filesystem::path, Char> {
       auto format(const std::filesystem::path &path,
               FormatContext& ctx) -> decltype(ctx.out()) {
 
+#if defined(WIN32)
+      // This will copy, but we need a narrow character string
+      return format_to(ctx.out(), "{}", path.string());
+#else // WIN32
       // Using std::filesystem::path::native() means that no copies
       // are required.
       return format_to(ctx.out(), "{}", path.native());
+#endif // !WIN32
   }
 };
+#endif // __cplusplus >= 201703L
 
 FMT_MODULE_EXPORT_END
 FMT_END_NAMESPACE
